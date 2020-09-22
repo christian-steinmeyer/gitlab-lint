@@ -11,6 +11,12 @@ import click
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
+CONTENT_TAG = "content"
+STATUS_TAG = "status"
+ERROR_TAG = "errors"
+VALID_TAG = "valid"
+CI_LINT_ENDPOINT = "/api/v4/ci/lint"
+
 
 @click.command()
 @click.option("--domain", "-d", envvar='GITLAB_LINT_DOMAIN', default="gitlab.com",
@@ -69,27 +75,30 @@ def get_validation_data(path, domain, token, verify):
     params = {'private_token': token} if token else None
 
     with open(path) as f:
-        r = requests.post(f"https://{domain}/api/v4/ci/lint", json={'content': f.read()}, params=params, verify=verify)
+        url = f"https://{domain}{CI_LINT_ENDPOINT}"
+        r = requests.post(url, json={CONTENT_TAG: f.read()}, params=params, verify=verify)
     if r.status_code != 200:
         raise click.ClickException(
-            f"API endpoint returned invalid response: \n {r.text} \n confirm your `domain` and `token` have been set correctly")
+            f"API endpoint returned invalid response: \n {r.text} \n confirm your `domain` and `token` have been set "
+            f"correctly")
     data = r.json()
     return data
 
 
-def generate_exit_info(data):
+def generate_exit_info(data: dict):
     """
     Parses response data and generates exit message and code
     :param data: json gitlab API ci/lint response data
     """
-    if data['status'] != 'valid':
-        print("GitLab CI configuration is invalid")
-        for e in data['errors']:
-            print(e, file=sys.stderr)
-        sys.exit(1)
-    else:
-        print("GitLab CI configuration is valid")
-        sys.exit(0)
+    exit_code = 0
+    for filename, response in data.items():
+        status = response[STATUS_TAG]
+        output = sys.stdout if status == VALID_TAG else sys.stderr
+        print(f"'{filename}' is {status}", file=output)
+        for error in response[ERROR_TAG]:
+            print("\t" + error, file=sys.stderr)
+            exit_code = 1
+    sys.exit(exit_code)
 
 
 if __name__ == '__main__':
