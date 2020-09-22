@@ -17,6 +17,7 @@ STATUS_TAG = "status"
 ERROR_TAG = "errors"
 VALID_TAG = "valid"
 CI_LINT_ENDPOINT = "/api/v4/ci/lint"
+DEFAULT_FILE_NAME = ".gitlab-ci.yml"
 
 
 @click.command()
@@ -24,7 +25,7 @@ CI_LINT_ENDPOINT = "/api/v4/ci/lint"
               help="Gitlab Domain. You can set envvar GITLAB_LINT_DOMAIN")
 @click.option("--token", "-t", envvar='GITLAB_LINT_TOKEN',
               help="Gitlab Personal Token. You can set envvar GITLAB_LINT_TOKEN")
-@click.option("--path", "-p", default=[".gitlab-ci.yml"],
+@click.option("--path", "-p", default=[DEFAULT_FILE_NAME],
               help="Path to .yml or directory (see --find-all), defaults to .gitlab-ci.yml in local directory, "
                    "can be repeated",
               type=click.Path(exists=True, readable=True, file_okay=True), multiple=True)
@@ -95,14 +96,42 @@ def generate_exit_info(data: dict):
     :param data: json gitlab API ci/lint response data
     """
     exit_code = 0
-    for filename, response in data.items():
+    for file_path, response in data.items():
         status = response[STATUS_TAG]
-        output = sys.stdout if status == VALID_TAG else sys.stderr
-        print(f"'{filename}' is {status}", file=output)
+        print(f"{format_as_string(file_path)} is {status}")
         for error in response[ERROR_TAG]:
-            print("\t" + error, file=sys.stderr)
+            # gitlab ci/lint expects all files to be called the same
+            # by replacing the default name with the actual name,
+            # the output becomes more readable
+            filename = Path(file_path).name
+            error = error.replace(DEFAULT_FILE_NAME, filename)
+            error = format_error(error)
+
+            print(f"\t{error}")
             exit_code = 1
     sys.exit(exit_code)
+
+
+def format_as_string(string: str):
+    """
+    Formats a given string in a different color using ANSI escape sequences
+    (see https://stackoverflow.com/a/287944/5299750) and adds double quotes
+    :param string: to be printed
+    """
+    ansi_start = '\033[92m'
+    ansi_end = '\033[0m'
+    return f"{ansi_start}\"{string}\"{ansi_end}"
+
+
+def format_error(string: str):
+    """
+    Formats a given message in an error color using ANSI escape sequences
+    (see https://stackoverflow.com/a/287944/5299750)
+    :param string: to be printed
+    """
+    ansi_start = '\033[91m'
+    ansi_end = '\033[0m'
+    return f"{ansi_start}{string}{ansi_end}"
 
 
 if __name__ == '__main__':
