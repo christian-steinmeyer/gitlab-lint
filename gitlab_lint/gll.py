@@ -3,6 +3,7 @@
 #
 
 import sys
+from pathlib import Path
 from typing import Tuple
 from typing import Union
 
@@ -25,6 +26,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 @click.option("--find-all", "-f", default=False, is_flag=True,
               help="Traverse directory given in --path argument recursively and check all .yml files")
 def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool):
+    validate_arguments(find_all, path)
     data = {}
     if not find_all:
         for filename in path:
@@ -34,6 +36,19 @@ def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, fi
         filename = None
         data[filename] = get_validation_data(path, domain, token, verify)
     generate_exit_info(data)
+
+
+def validate_arguments(find_all, path):
+    if not find_all:
+        for p in path:
+            if Path(p).is_dir():
+                print(f"You have provided a directory '{p}', but not selected the --find-all option.", file=sys.stderr)
+                sys.exit(1)
+    if find_all:
+        for p in path:
+            if Path(p).is_file():
+                print(f"You have provided a file '{p}', but selected the --find-all option.", file=sys.stderr)
+                sys.exit(1)
 
 
 def get_validation_data(path, domain, token, verify):
