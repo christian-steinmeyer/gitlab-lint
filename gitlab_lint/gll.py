@@ -3,6 +3,7 @@
 #
 
 import sys
+from glob import glob
 from pathlib import Path
 from typing import Tuple
 from typing import Union
@@ -38,9 +39,12 @@ def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, fi
         for filename in path:
             data[filename] = get_validation_data(filename, domain, token, verify)
     else:
-        # traverse
-        filename = None
-        data[filename] = get_validation_data(path, domain, token, verify)
+        for directory in path:
+            files_with_leading_dot = glob(f"{directory}/**/.*.yml", recursive=True)
+            files_without_leading_dot = glob(f"{directory}/**/*.yml", recursive=True)
+            filenames = files_with_leading_dot + files_without_leading_dot
+            for filename in filenames:
+                data[filename] = get_validation_data(filename, domain, token, verify)
     generate_exit_info(data)
 
 
