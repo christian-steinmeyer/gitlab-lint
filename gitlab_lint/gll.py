@@ -3,6 +3,8 @@
 #
 
 import sys
+from typing import Tuple
+from typing import Union
 
 import click
 import requests
@@ -14,12 +16,23 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
               help="Gitlab Domain. You can set envvar GITLAB_LINT_DOMAIN")
 @click.option("--token", "-t", envvar='GITLAB_LINT_TOKEN',
               help="Gitlab Personal Token. You can set envvar GITLAB_LINT_TOKEN")
-@click.option("--path", "-p", default=".gitlab-ci.yml", help="Path to .gitlab-ci.yml, defaults to local directory",
-              type=click.Path(exists=True, readable=True, file_okay=True))
+@click.option("--path", "-p", default=[".gitlab-ci.yml"],
+              help="Path to .yml or directory (see --find-all), defaults to .gitlab-ci.yml in local directory, "
+                   "can be repeated",
+              type=click.Path(exists=True, readable=True, file_okay=True), multiple=True)
 @click.option("--verify", "-v", default=False, is_flag=True,
               help="Enables HTTPS verification, which is disabled by default to support privately hosted instances")
-def gll(domain, token, path, verify):
-    data = get_validation_data(path, domain, token, verify)
+@click.option("--find-all", "-f", default=False, is_flag=True,
+              help="Traverse directory given in --path argument recursively and check all .yml files")
+def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool):
+    data = {}
+    if not find_all:
+        for filename in path:
+            data[filename] = get_validation_data(filename, domain, token, verify)
+    else:
+        # traverse
+        filename = None
+        data[filename] = get_validation_data(path, domain, token, verify)
     generate_exit_info(data)
 
 
