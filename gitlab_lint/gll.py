@@ -22,8 +22,8 @@ CI_LINT_ENDPOINT = "/api/v4/ci/lint"
 DEFAULT_FILE_NAME = ".gitlab-ci.yml"
 PLACE_HOLDER = "X"
 
-SKIPPED_ERRORS = ["jobs config should contain at least one visible job",
-                  f"Local file {PLACE_HOLDER} does not have project!"]
+SKIPPED_ERRORS = [f"Local file {PLACE_HOLDER} does not have project!"]
+SKIPPED_ERRORS_IF_INCLUDED = ["jobs config should contain at least one visible job"]
 
 
 @click.command()
@@ -50,7 +50,7 @@ def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, fi
             files_with_leading_dot = glob(f"{directory}/**/.*.yml", recursive=True)
             files_without_leading_dot = glob(f"{directory}/**/*.yml", recursive=True)
             filenames = files_with_leading_dot + files_without_leading_dot
-            for filename in filenames:
+            for filename in sorted(filenames):
                 data[filename] = get_validation_data(filename, domain, token, verify)
     generate_exit_info(data)
 
@@ -106,13 +106,13 @@ def pre_process(filename: str, response: dict) -> dict:
     :param response: gitlab ci lint response for file in question
     :return dict: updated response with updated status
     """
-    if response[STATUS_TAG] == VALID_TAG or filename == DEFAULT_FILE_NAME:
+    if response[STATUS_TAG] == VALID_TAG:
         # no pre processing necessary
         return response
 
     status = WARNING_TAG
     for error in response[ERROR_TAG]:
-        if not should_be_skipped(error):
+        if not should_be_skipped(filename, error):
             status = INVALID_TAG
     response[STATUS_TAG] = status
     return response
@@ -136,14 +136,17 @@ def generate_exit_info(data: dict):
     sys.exit(exit_code)
 
 
-def should_be_skipped(error: str) -> bool:
+def should_be_skipped(filename: str, error: str) -> bool:
     """
     Some errors while useful for the main .gitlab-ci.yml are irrelevant for e.g. included files.
+    :param filename: file in question
     :param error: error message in question
     :return: true if the error in question should be skipped.
     """
-
-    return re.sub(r'`.+`', PLACE_HOLDER, error) in SKIPPED_ERRORS
+    skipped_errors = SKIPPED_ERRORS
+    if filename != DEFAULT_FILE_NAME:
+        skipped_errors += SKIPPED_ERRORS_IF_INCLUDED
+    return re.sub(r'`.+`', PLACE_HOLDER, error) in skipped_errors
 
 
 def log_error(error: str, filename: str, status: str) -> None:
