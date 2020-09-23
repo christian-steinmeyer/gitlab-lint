@@ -16,8 +16,12 @@ CONTENT_TAG = "content"
 STATUS_TAG = "status"
 ERROR_TAG = "errors"
 VALID_TAG = "valid"
+INVALID_TAG = "invalid"
+WARNING_TAG = "valid with warnings"
 CI_LINT_ENDPOINT = "/api/v4/ci/lint"
 DEFAULT_FILE_NAME = ".gitlab-ci.yml"
+
+SKIPPED_ERRORS = ["jobs config should contain at least one visible job"]
 
 
 @click.command()
@@ -90,6 +94,28 @@ def get_validation_data(path, domain, token, verify):
     return data
 
 
+def pre_process(filename: str, response: dict) -> dict:
+    """
+    Ensures the status of a response with non-errors is only warning,
+    not invalid. Non-errors are defined as those only affecting parent
+    CI scripts. It is assumed, that the parent has the default name.
+
+    :param filename: name of the file in question
+    :param response: gitlab ci lint response for file in question
+    :return dict: updated response with updated status
+    """
+    if response[STATUS_TAG] == VALID_TAG or filename == DEFAULT_FILE_NAME:
+        # no pre processing necessary
+        return response
+
+    status = WARNING_TAG
+    for error in response[ERROR_TAG]:
+        if not should_be_skipped(error):
+            status = INVALID_TAG
+    response[STATUS_TAG] = status
+    return response
+
+
 def generate_exit_info(data: dict):
     """
     Parses response data and generates exit message and code
@@ -97,19 +123,39 @@ def generate_exit_info(data: dict):
     """
     exit_code = 0
     for file_path, response in data.items():
+        filename = Path(file_path).name
+        response = pre_process(filename, response)
         status = response[STATUS_TAG]
         print(f"{format_as_string(file_path)} is {status}")
         for error in response[ERROR_TAG]:
-            # gitlab ci/lint expects all files to be called the same
-            # by replacing the default name with the actual name,
-            # the output becomes more readable
-            filename = Path(file_path).name
-            error = error.replace(DEFAULT_FILE_NAME, filename)
-            error = format_error(error)
-
-            print(f"\t{error}")
+            log_error(error, filename, status)
+        if status not in [VALID_TAG, WARNING_TAG]:
             exit_code = 1
     sys.exit(exit_code)
+
+
+def should_be_skipped(error: str) -> bool:
+    """
+    Some errors while useful for the main .gitlab-ci.yml are irrelevant for e.g. included files.
+    :param error: error message in question
+    :return: true if the error in question should be skipped.
+    """
+    return error in SKIPPED_ERRORS
+
+
+def log_error(error: str, filename: str, status: str) -> None:
+    """
+    Gitlab ci/lint expects all files to be called the same.
+    By replacing the default name with the actual file name,
+    the output of this tool becomes more readable.
+
+    :param error: original error message
+    :param filename: replaces the default name
+    :param status: kind of error, defined by tags
+    """
+    error = error.replace(DEFAULT_FILE_NAME, filename)
+    error = format_error(error, status)
+    print(f"\t{error}")
 
 
 def format_as_string(string: str):
@@ -118,18 +164,23 @@ def format_as_string(string: str):
     (see https://stackoverflow.com/a/287944/5299750) and adds double quotes
     :param string: to be printed
     """
-    ansi_start = '\033[92m'
+    ansi_start = '\033[32m'
     ansi_end = '\033[0m'
     return f"{ansi_start}\"{string}\"{ansi_end}"
 
 
-def format_error(string: str):
+def format_error(string: str, status: str):
     """
     Formats a given message in an error color using ANSI escape sequences
-    (see https://stackoverflow.com/a/287944/5299750)
+    (see https://stackoverflow.com/a/287944/5299750
+    and https://stackoverflow.com/a/33206814/5299750)
     :param string: to be printed
+    :param status: determines the color of the error
     """
-    ansi_start = '\033[91m'
+    if status == WARNING_TAG:
+        ansi_start = '\033[93m'
+    else:
+        ansi_start = '\033[91m'
     ansi_end = '\033[0m'
     return f"{ansi_start}{string}{ansi_end}"
 
