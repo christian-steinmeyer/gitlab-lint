@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # script to validate .gitlab-ci.yml
 #
-
+import re
 import sys
 from glob import glob
 from pathlib import Path
@@ -20,8 +20,10 @@ INVALID_TAG = "invalid"
 WARNING_TAG = "valid with warnings"
 CI_LINT_ENDPOINT = "/api/v4/ci/lint"
 DEFAULT_FILE_NAME = ".gitlab-ci.yml"
+PLACE_HOLDER = "X"
 
-SKIPPED_ERRORS = ["jobs config should contain at least one visible job"]
+SKIPPED_ERRORS = ["jobs config should contain at least one visible job",
+                  f"Local file {PLACE_HOLDER} does not have project!"]
 
 
 @click.command()
@@ -140,7 +142,8 @@ def should_be_skipped(error: str) -> bool:
     :param error: error message in question
     :return: true if the error in question should be skipped.
     """
-    return error in SKIPPED_ERRORS
+
+    return re.sub(r'`.+`', PLACE_HOLDER, error) in SKIPPED_ERRORS
 
 
 def log_error(error: str, filename: str, status: str) -> None:
