@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='gitlab-lint',
-    version='0.2.3',
+    version='0.2.4',
     py_modules=['gitlab-lint'],
     author="Christian Steinmeyer",
     author_email="christian.steinmeyer@item.fraunhofer.de",
@@ -15,7 +15,7 @@ setup(
     license="MIT",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    download_url="https://github.com/christian-steinmeyer/gitlab-lint/archive/0.2.3.tar.gz",
+    download_url="https://github.com/christian-steinmeyer/gitlab-lint/archive/0.2.4.tar.gz",
     keywords=['GITLAB', 'LINT', 'GIT'],
     packages=find_packages(),
     classifiers=[
