@@ -9,27 +9,29 @@ import click
 import requests
 import urllib3
 
-CONTENT_TAG = "content"
-STATUS_TAG = "status"
-ERROR_TAG = "errors"
-VALID_TAG = "valid"
-INVALID_TAG = "invalid"
-WARNING_TAG = "valid with warnings"
-CI_LINT_ENDPOINT = "/api/v4/ci/lint"
-DEFAULT_FILE_NAME = ".gitlab-ci.yml"
-PLACE_HOLDER = "X"
-
-SKIPPED_ERRORS = [f"Local file {PLACE_HOLDER} does not have project!"]
-SKIPPED_ERRORS_IF_INCLUDED = ["jobs config should contain at least one visible job"]
-
 
 class Linter:
-    def __init__(self, domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool):
+    CONTENT_TAG = "content"
+    STATUS_TAG = "status"
+    ERROR_TAG = "errors"
+    VALID_TAG = "valid"
+    INVALID_TAG = "invalid"
+    WARNING_TAG = "valid with warnings"
+    CI_LINT_ENDPOINT = "/api/v4/ci/lint"
+    DEFAULT_FILE_NAME = ".gitlab-ci.yml"
+    PLACE_HOLDER = "X"
+
+    SKIPPED_ERRORS = []
+    SKIPPED_ERRORS_IF_INCLUDED = ["jobs config should contain at least one visible job"]
+
+    def __init__(self, domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool,
+                 skip_includes: bool):
         self.domain = domain
         self.token = token
         self.path = path
         self.verify = verify
         self.find_all = find_all
+        self.skip_includes = skip_includes
         self.data = {}
         self.exit_code = 0
         if not verify:
