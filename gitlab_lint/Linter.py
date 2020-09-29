@@ -64,8 +64,8 @@ class Linter:
             Reference: https://docs.gitlab.com/ee/api/lint.html
         """
         params = {'private_token': self.token} if self.token else None
-        url = f"https://{self.domain}{CI_LINT_ENDPOINT}"
-        response = requests.post(url, json={CONTENT_TAG: content}, params=params, verify=self.verify)
+        url = f"https://{self.domain}{self.CI_LINT_ENDPOINT}"
+        response = requests.post(url, json={self.CONTENT_TAG: content}, params=params, verify=self.verify)
         if response.status_code != 200:
             raise click.ClickException(
                 f"API endpoint returned invalid response:\n"
@@ -73,61 +73,73 @@ class Linter:
                 f"confirm your `domain` and `token` have been set correctly")
         return response.json()
 
-    def preprocess(self, content):
-        print(content)
-        # TODO remove includes
+    def preprocess(self, content: str) -> str:
+        content = self.remove_includes(content)
         return content
 
     def postprocess(self, response: dict, filepath: str) -> dict:
-        if response[STATUS_TAG] == VALID_TAG:
+        if response[self.STATUS_TAG] == self.VALID_TAG:
             # no post processing necessary
             return response
 
-        status = WARNING_TAG
-        for error in response[ERROR_TAG]:
-            if not should_be_skipped(filepath, error):
-                status = INVALID_TAG
-        response[STATUS_TAG] = status
+        status = self.WARNING_TAG
+        for error in response[self.ERROR_TAG]:
+            if not self.should_be_skipped(filepath, error):
+                status = self.INVALID_TAG
+        response[self.STATUS_TAG] = status
         return response
 
     def handle(self, response: dict, filepath: str):
-        print(response)
         filename = Path(filepath).name
-        status = response[STATUS_TAG]
+        status = response[self.STATUS_TAG]
         print(f"{format_as_string(filepath)} is {status}")
-        for error in response[ERROR_TAG]:
-            log_error(error, filename, status)
-        if status not in [VALID_TAG, WARNING_TAG]:
+        for error in response[self.ERROR_TAG]:
+            self.log_error(error, filename, status)
+        if status not in [self.VALID_TAG, self.WARNING_TAG]:
             self.exit_code = 1
         return response
 
+    def remove_includes(self, content: str) -> str:
+        if self.skip_includes:
+            lines = content.split("\n")
+            processed_lines = lines.copy()
+            include_block = False
+            for line in lines:
+                if "include:" in line:
+                    processed_lines.remove(line)
+                    include_block = True
+                elif include_block and re.match(r'\s*-.*', line):
+                    processed_lines.remove(line)
+                else:
+                    include_block = False
+            content = "\n".join(processed_lines)
+        return content
 
-def should_be_skipped(filename: str, error: str) -> bool:
-    """
-    Some errors while useful for the main .gitlab-ci.yml are irrelevant for e.g. included files.
-    :param filename: file in question
-    :param error: error message in question
-    :return: true if the error in question should be skipped.
-    """
-    skipped_errors = SKIPPED_ERRORS
-    if not filename.endswith(DEFAULT_FILE_NAME):
-        skipped_errors += SKIPPED_ERRORS_IF_INCLUDED
-    return re.sub(r'`.+`', PLACE_HOLDER, error) in skipped_errors
+    def should_be_skipped(self, filename: str, error: str) -> bool:
+        """
+        Some errors while useful for the main .gitlab-ci.yml are irrelevant for e.g. included files.
+        :param filename: file in question
+        :param error: error message in question
+        :return: true if the error in question should be skipped.
+        """
+        skipped_errors = self.SKIPPED_ERRORS
+        if not filename.endswith(self.DEFAULT_FILE_NAME):
+            skipped_errors += self.SKIPPED_ERRORS_IF_INCLUDED
+        return re.sub(r'`.+`', self.PLACE_HOLDER, error) in skipped_errors
 
+    def log_error(self, error: str, filename: str, status: str) -> None:
+        """
+        Gitlab ci/lint expects all files to be called the same.
+        By replacing the default name with the actual file name,
+        the output of this tool becomes more readable.
 
-def log_error(error: str, filename: str, status: str) -> None:
-    """
-    Gitlab ci/lint expects all files to be called the same.
-    By replacing the default name with the actual file name,
-    the output of this tool becomes more readable.
-
-    :param error: original error message
-    :param filename: replaces the default name
-    :param status: kind of error, defined by tags
-    """
-    error = error.replace(DEFAULT_FILE_NAME, filename)
-    error = format_error(error, status)
-    print(f"\t{error}")
+        :param error: original error message
+        :param filename: replaces the default name
+        :param status: kind of error, defined by tags
+        """
+        error = error.replace(self.DEFAULT_FILE_NAME, filename)
+        error = format_error(error, status == self.WARNING_TAG)
+        print(f"\t{error}")
 
 
 def format_as_string(string: str):
@@ -141,15 +153,15 @@ def format_as_string(string: str):
     return f"{ansi_start}\"{string}\"{ansi_end}"
 
 
-def format_error(string: str, status: str):
+def format_error(string: str, is_warning: bool) -> str:
     """
     Formats a given message in an error color using ANSI escape sequences
     (see https://stackoverflow.com/a/287944/5299750
     and https://stackoverflow.com/a/33206814/5299750)
     :param string: to be printed
-    :param status: determines the color of the error
+    :param is_warning: determines the color of the error
     """
-    if status == WARNING_TAG:
+    if is_warning:
         ansi_start = '\033[93m'
     else:
         ansi_start = '\033[91m'
