@@ -8,7 +8,9 @@ image: python:latest
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-include: 'nested folder test/default.yml'
+include:
+  - 'examples/valid/default.yml'
+  - 'examples/invalid/corrupt.yml'
 
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/reference/pip_install/#caching
