@@ -26,14 +26,19 @@ from gitlab_lint.Linter import Linter
               help="Traverse directory given in --path argument recursively and check all .yml files")
 @click.option("--skip-includes", "-s", default=False, is_flag=True,
               help="Ignore include blocks in order to not 'import' errors from other files")
-def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool, skip_includes: bool):
-    validate_arguments(find_all, path)
-    linter = Linter(domain, token, path, verify, find_all, skip_includes)
+@click.option("--dry-run", "-dr", default=False, is_flag=True,
+              help="Run pipeline creation simulation or only do static check")
+@click.option("--project-id", "id", envvar='CI_PROJECT_ID',
+              help="Project id. You can set envvar CI_PROJECT_ID")
+def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool, skip_includes: bool,
+        dry_run: bool, project_id: Union[None, str]):
+    validate_arguments(find_all, path, dry_run, project_id)
+    linter = Linter(domain, token, path, verify, find_all, skip_includes, dry_run, project_id)
     linter.validate()
     sys.exit(linter.exit_code)
 
 
-def validate_arguments(find_all, path):
+def validate_arguments(find_all, path, dry_run, project_id):
     if not find_all:
         for p in path:
             if Path(p).is_dir():
@@ -44,6 +49,9 @@ def validate_arguments(find_all, path):
             if Path(p).is_file():
                 print(f"You have provided a file '{p}', but selected the --find-all option.", file=sys.stderr)
                 sys.exit(1)
+    if dry_run and project_id is None:
+        print(f"You have chosen a dry run, but did not use the --project-id option.", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
