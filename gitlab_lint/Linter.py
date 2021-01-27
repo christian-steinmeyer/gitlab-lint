@@ -90,7 +90,8 @@ class Linter:
         return content
 
     def postprocess(self, response: dict, filepath: str) -> dict:
-        if response[self.STATUS_TAG] == self.VALID_TAG:
+        if (self.VALID_TAG in response and response[self.VALID_TAG]) or (
+                self.STATUS_TAG in response and response[self.STATUS_TAG] == self.VALID_TAG):
             # no post processing necessary
             return response
 
@@ -103,7 +104,10 @@ class Linter:
 
     def handle(self, response: dict, filepath: str):
         filename = Path(filepath).name
-        status = response[self.STATUS_TAG]
+        if self.STATUS_TAG in response:
+            status = response[self.STATUS_TAG]
+        else:
+            status = response[self.VALID_TAG]
         print(f"{format_as_string(filepath)} is {status}")
         for error in response[self.ERROR_TAG]:
             self.log_error(error, filename, status)

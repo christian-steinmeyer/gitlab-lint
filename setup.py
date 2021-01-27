@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='gitlab-lint',
-    version='0.2.5',
+    version='0.2.6',
     py_modules=['gitlab-lint'],
     author="Christian Steinmeyer",
     author_email="christian.steinmeyer@item.fraunhofer.de",
