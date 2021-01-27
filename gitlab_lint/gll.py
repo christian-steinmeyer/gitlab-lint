@@ -28,7 +28,7 @@ from gitlab_lint.Linter import Linter
               help="Ignore include blocks in order to not 'import' errors from other files")
 @click.option("--dry-run", "-dr", default=False, is_flag=True,
               help="Run pipeline creation simulation or only do static check")
-@click.option("--project-id", "id", envvar='CI_PROJECT_ID',
+@click.option("--project-id", "-id", envvar='CI_PROJECT_ID',
               help="Project id. You can set envvar CI_PROJECT_ID")
 def gll(domain: str, token: Union[None, str], path: Tuple[str], verify: bool, find_all: bool, skip_includes: bool,
         dry_run: bool, project_id: Union[None, str]):

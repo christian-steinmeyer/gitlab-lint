@@ -20,7 +20,7 @@ class Linter:
     WARNING_TAG = "valid with warnings"
     CI_LINT_ENDPOINT = "/api/v4/ci/lint"
     PROJECT_PLACEHOLDER = ":id:"
-    PROJECT_SPECIFIC_CI_LINT_ENDPOINT = f"api/v4/projects/{PROJECT_PLACEHOLDER}/ci/lint"
+    PROJECT_SPECIFIC_CI_LINT_ENDPOINT = f"/api/v4/projects/{PROJECT_PLACEHOLDER}/ci/lint"
     DEFAULT_FILE_NAME = ".gitlab-ci.yml"
     PLACE_HOLDER = "X"
 
