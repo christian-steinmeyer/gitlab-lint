@@ -70,13 +70,15 @@ class Linter:
         """
         params = {'private_token': self.token} if self.token else None
         json = {self.CONTENT_TAG: content}
-        if self.dry_run:
-            json.update({self.DRY_RUN_TAG: True})
+        if self.project_id is not None:
             endpoint = self.PROJECT_SPECIFIC_CI_LINT_ENDPOINT
             endpoint = endpoint.replace(self.PROJECT_PLACEHOLDER, self.project_id)
-            url = f"https://{self.domain}{endpoint}"
         else:
-            url = f"https://{self.domain}{self.CI_LINT_ENDPOINT}"
+            endpoint = self.CI_LINT_ENDPOINT
+        url = f"https://{self.domain}{endpoint}"
+
+        if self.dry_run:
+            json.update({self.DRY_RUN_TAG: True})
         response = requests.post(url, json=json, params=params, verify=self.verify)
         if response.status_code != 200:
             raise click.ClickException(
